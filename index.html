@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EcoSort AI - Smart Waste Management | Team TechNova</title>
+<style>
+  :root { --dark:#0b3d2e; --green:#1f9d6b; --mint:#3ddc97; --light:#eef7f1; --ink:#1b2b24; --muted:#5c6f66; --amber:#f2a93b; --red:#d9534f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Calibri, "Segoe UI", Arial, sans-serif; color:var(--ink); background:#fff; line-height:1.5; }
+  header { background:var(--dark); color:#fff; padding:28px 20px; text-align:center; }
+  header h1 { margin:0 0 6px; font-size:2rem; }
+  header p { margin:0; color:var(--mint); font-size:1.05rem; }
+  nav { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; background:var(--light); padding:10px; position:sticky; top:0; z-index:5; }
+  nav button { border:0; padding:10px 18px; border-radius:20px; background:#fff; color:var(--dark); font-weight:700; cursor:pointer; font-size:1rem; }
+  nav button.active { background:var(--green); color:#fff; }
+  main { max-width:1000px; margin:0 auto; padding:24px 16px 48px; }
+  section { display:none; }
+  section.active { display:block; }
+  .card { background:var(--light); border-radius:14px; padding:20px; margin-bottom:20px; }
+  h2 { color:var(--dark); margin-top:0; }
+  .row { display:flex; gap:20px; flex-wrap:wrap; }
+  .col { flex:1 1 320px; min-width:0; }
+  .btn { background:var(--green); color:#fff; border:0; padding:10px 18px; border-radius:8px; font-weight:700; cursor:pointer; font-size:1rem; }
+  .btn:disabled { background:#9bb8aa; cursor:wait; }
+  .btn.alt { background:var(--dark); }
+  #preview { max-width:100%; max-height:280px; border-radius:10px; display:none; margin-top:12px; }
+  .result { margin-top:14px; padding:16px; border-radius:12px; background:#fff; border:2px solid var(--green); display:none; }
+  .badge { display:inline-block; padding:4px 14px; border-radius:16px; color:#fff; font-weight:700; font-size:1.1rem; }
+  .bar { height:10px; background:#d8e6dd; border-radius:6px; overflow:hidden; margin:2px 0 8px; }
+  .bar > div { height:100%; background:var(--green); }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+  .stat { background:var(--dark); color:#fff; border-radius:12px; padding:14px; text-align:center; }
+  .stat b { display:block; font-size:1.8rem; color:var(--mint); }
+  svg { width:100%; height:auto; background:#fff; border-radius:12px; border:1px solid #cfe3d8; }
+  label { font-weight:700; }
+  input[type=range] { width:100%; }
+  .muted { color:var(--muted); font-size:.92rem; }
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; }
+  th, td { padding:8px 10px; text-align:left; border-bottom:1px solid #e2eee7; }
+  th { background:var(--green); color:#fff; }
+  footer { text-align:center; color:var(--muted); padding:20px; font-size:.9rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EcoSort AI</h1>
+  <p>AI-Based Smart Waste Management &nbsp;|&nbsp; Team TechNova</p>
+</header>
+<nav>
+  <button class="active" data-tab="classify">1. Waste Classifier</button>
+  <button data-tab="route">2. Route Optimizer</button>
+  <button data-tab="dash">3. Dashboard</button>
+</nav>
+ 
+<main>
+<!-- ============ TAB 1: CLASSIFIER ============ -->
+<section id="classify" class="active">
+  <div class="card">
+    <h2>Waste image classifier</h2>
+    <p>Upload or capture a photo of a waste item. The AI model identifies it and tells you which bin to use.</p>
+    <p class="muted" id="modelStatus">Loading AI model... (first load takes a few seconds)</p>
+    <input type="file" id="file" accept="image/*" capture="environment">
+    <img id="preview" alt="Selected waste item">
+    <div style="margin-top:12px"><button class="btn" id="classifyBtn" disabled>Classify waste</button></div>
+    <div class="result" id="result"></div>
+  </div>
+  <div class="card">
+    <h2>How this works</h2>
+    <p>The demo uses MobileNet (a lightweight CNN) running in your browser with TensorFlow.js. Its predictions are mapped to six waste classes: plastic, paper, metal, glass, organic and e-waste. For the full project, we fine-tune the model with transfer learning on TrashNet and TACO images.</p>
+  </div>
+</section>
+ 
+<!-- ============ TAB 2: ROUTE ============ -->
+<section id="route">
+  <div class="card">
+    <h2>Dynamic collection route optimizer</h2>
+    <p>Each dot is a smart bin with a fill-level sensor (simulated). Fixed routes visit every bin. EcoSort visits only bins that need emptying and plans the shortest loop.</p>
+    <div class="row">
+      <div class="col">
+        <label for="thr">Collect bins filled above: <span id="thrVal">60</span>%</label>
+        <input type="range" id="thr" min="20" max="95" value="60">
+      </div>
+      <div class="col" style="align-self:end">
+        <button class="btn" id="newDay">Simulate new day</button>
+        <button class="btn alt" id="plan">Plan route</button>
+      </div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="sFixed">-</b>Fixed route (km)</div>
+    <div class="stat"><b id="sSmart">-</b>EcoSort route (km)</div>
+    <div class="stat"><b id="sSave">-</b>Distance saved</div>
+    <div class="stat"><b id="sStops">-</b>Bins visited</div>
+  </div>
+  <svg id="map" viewBox="0 0 700 440" role="img" aria-label="Map of bins and route"></svg>
+  <p class="muted">Legend: green = low fill, amber = medium, red = needs collection. Blue square = depot. Route shown as a dark line.</p>
+</section>
+ 
+<!-- ============ TAB 3: DASHBOARD ============ -->
+<section id="dash">
+  <div class="card">
+    <h2>City dashboard (this session)</h2>
+    <div class="stats">
+      <div class="stat"><b id="dItems">0</b>Items classified</div>
+      <div class="stat"><b id="dRecyc">0%</b>Recyclable share</div>
+      <div class="stat"><b id="dRoutes">0</b>Routes planned</div>
+      <div class="stat"><b id="dKm">0</b>Km saved (total)</div>
+    </div>
+    <table>
+      <thead><tr><th>Waste class</th><th>Items</th><th>Bin</th></tr></thead>
+      <tbody id="dTable"></tbody>
+    </table>
+  </div>
+</section>
+</main>
+<footer>EcoSort AI prototype by Karpagavalli V, Jeevitha S, Pranisha A and Amirthavalli S. Sensor data is simulated.</footer>
+ 
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+<script>
+/* ================= TABS ================= */
+document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll("section").forEach(x => x.classList.remove("active"));
+  b.classList.add("active");
+  document.getElementById(b.dataset.tab).classList.add("active");
+}));
+ 
+/* ================= WASTE CLASSES ================= */
+const CLASSES = {
+  plastic: { label: "Plastic",       color: "#2e6f95", bin: "Blue bin (dry waste)",   tip: "Rinse and dry it. Remove caps and labels if possible.", recyclable: true },
+  paper:   { label: "Paper / Cardboard", color: "#8d6e63", bin: "Blue bin (dry waste)", tip: "Keep it dry and flatten boxes. Greasy paper goes to wet waste.", recyclable: true },
+  metal:   { label: "Metal",         color: "#607d8b", bin: "Blue bin (dry waste)",   tip: "Empty and rinse cans. Metals have high resale value.", recyclable: true },
+  glass:   { label: "Glass",         color: "#00a39a", bin: "Blue bin (dry waste)",   tip: "Handle carefully. Do not mix broken glass with other waste.", recyclable: true },
+  organic: { label: "Organic / Food", color: "#1f9d6b", bin: "Green bin (wet waste)", tip: "Ideal for composting or biogas.", recyclable: true },
+  ewaste:  { label: "E-waste",       color: "#d9534f", bin: "E-waste drop-off point", tip: "Never put in normal bins. Give to an authorised e-waste collector.", recyclable: true },
+  other:   { label: "General waste", color: "#757575", bin: "Black bin (reject waste)", tip: "Not clearly recyclable. Use the reject bin.", recyclable: false }
+};
+ 
+/* Keywords matched against MobileNet's ImageNet class names (checked in this order) */
+const RULES = [
+  ["ewaste",  ["cellular telephone","mobile phone","laptop","notebook","mouse","keyboard","remote control","monitor","screen","modem","ipod","hard disc","headphone","joystick","television","printer","router","charger","battery","speaker","radio","calculator","digital clock"]],
+  ["glass",   ["beer bottle","wine bottle","goblet","beer glass","wine glass","beaker","vase","red wine","jar","perfume"]],
+  ["metal",   ["can opener","tin can","ashcan","cleaver","spatula","wok","frying pan","skillet","ladle","corkscrew","hammer","screw","nail","padlock","chain","safety pin","caldron","strainer","wok"]],
+  ["plastic", ["bottle","water jug","bucket","plastic bag","container","shampoo","lotion","sunscreen","toy","lighter","syringe","diaper","hair spray","packet","tub","bowl"]],
+  ["paper",   ["envelope","carton","paper towel","book jacket","binder","menu","comic book","crossword","tissue","newspaper","handkerchief","packet","cardboard","pencil box","toilet tissue"]],
+  ["organic", ["banana","orange","lemon","granny smith","strawberry","pineapple","broccoli","cauliflower","cucumber","mushroom","pomegranate","fig","bell pepper","corn","zucchini","artichoke","cabbage","pizza","bagel","cheeseburger","hotdog","guacamole","custard apple","jackfruit","acorn squash","butternut","spaghetti squash","carbonara","pretzel","ice cream","potato","head cabbage","cardoon","mashed","trifle","french loaf","meat loaf","burrito","dough"]]
+];
+function mapToClass(predictions) {
+  for (const p of predictions) {
+    const name = p.className.toLowerCase();
+    for (const [cls, words] of RULES) {
+      if (words.some(w => name.includes(w))) return { cls, from: p };
+    }
+  }
+  return { cls: "other", from: predictions[0] };
+}
+ 
+/* ================= MODEL ================= */
+let model = null;
+const statusEl = document.getElementById("modelStatus");
+const btn = document.getElementById("classifyBtn");
+mobilenet.load({ version: 2, alpha: 1.0 }).then(m => {
+  model = m;
+  statusEl.textContent = "AI model ready. Choose an image to begin.";
+  btn.disabled = !document.getElementById("file").files.length;
+}).catch(() => { statusEl.textContent = "Could not load the AI model. Check your internet connection and reload."; });
+ 
+const fileEl = document.getElementById("file");
+const prev = document.getElementById("preview");
+fileEl.addEventListener("change", () => {
+  const f = fileEl.files[0];
+  if (!f) return;
+  prev.src = URL.createObjectURL(f);
+  prev.style.display = "block";
+  document.getElementById("result").style.display = "none";
+  btn.disabled = !model;
+});
+ 
+/* ================= DASHBOARD STATE ================= */
+const stats = { counts: {plastic:0,paper:0,metal:0,glass:0,organic:0,ewaste:0,other:0}, routes: 0, kmSaved: 0 };
+function renderDash() {
+  const total = Object.values(stats.counts).reduce((a,b)=>a+b,0);
+  const rec = total - stats.counts.other;
+  document.getElementById("dItems").textContent = total;
+  document.getElementById("dRecyc").textContent = total ? Math.round(100*rec/total) + "%" : "0%";
+  document.getElementById("dRoutes").textContent = stats.routes;
+  document.getElementById("dKm").textContent = stats.kmSaved.toFixed(1);
+  document.getElementById("dTable").innerHTML = Object.keys(CLASSES).map(k =>
+    `<tr><td><span class="badge" style="background:${CLASSES[k].color};font-size:.9rem">${CLASSES[k].label}</span></td><td>${stats.counts[k]}</td><td>${CLASSES[k].bin}</td></tr>`).join("");
+}
+renderDash();
+ 
+btn.addEventListener("click", async () => {
+  if (!model) return;
+  btn.disabled = true; btn.textContent = "Analysing...";
+  try {
+    const preds = await model.classify(prev, 5);
+    const { cls, from } = mapToClass(preds);
+    const c = CLASSES[cls];
+    stats.counts[cls]++; renderDash();
+    const res = document.getElementById("result");
+    res.style.display = "block";
+    res.innerHTML = `
+      <span class="badge" style="background:${c.color}">${c.label}</span>
+      <p><b>Put it in:</b> ${c.bin}<br><b>Tip:</b> ${c.tip}</p>
+      <p class="muted">Model saw: ${from.className.split(",")[0]} (${(from.probability*100).toFixed(0)}% confidence)</p>
+      <details><summary class="muted">Top predictions</summary>
+      ${preds.map(p => `<div>${p.className.split(",")[0]} - ${(p.probability*100).toFixed(0)}%</div><div class="bar"><div style="width:${p.probability*100}%"></div></div>`).join("")}
+      </details>`;
+  } catch (e) {
+    alert("Could not classify this image. Try another one.");
+  }
+  btn.disabled = false; btn.textContent = "Classify waste";
+});
+ 
+/* ================= ROUTE OPTIMIZER ================= */
+const SCALE_KM = 0.012;                 // 1 map unit = 12 metres
+const DEPOT = { id: "Depot", x: 60, y: 380 };
+let bins = [];
+ 
+function seededBins() {
+  const pts = [[130,90],[250,60],[390,100],[520,70],[640,130],[180,200],[310,230],[450,210],[590,260],[120,310],[270,340],[420,350],[560,380],[650,330],[360,150]];
+  return pts.map((p,i) => ({ id: "Bin " + (i+1), x: p[0], y: p[1], fill: Math.round(15 + Math.random()*85) }));
+}
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+function routeLength(order) {            // order = array of points, loop starts and ends at depot
+  let d = 0, prevP = DEPOT;
+  for (const p of order) { d += dist(prevP,p); prevP = p; }
+  return d + dist(prevP, DEPOT);
+}
+function nearestNeighbour(points) {
+  const left = points.slice(), out = []; let cur = DEPOT;
+  while (left.length) {
+    let bi = 0;
+    for (let i = 1; i < left.length; i++) if (dist(cur,left[i]) < dist(cur,left[bi])) bi = i;
+    cur = left.splice(bi,1)[0]; out.push(cur);
+  }
+  return out;
+}
+function twoOpt(order) {                 // improve the route by reversing segments
+  let best = order.slice(), improved = true;
+  while (improved) {
+    improved = false;
+    for (let i = 0; i < best.length - 1; i++) {
+      for (let k = i + 1; k < best.length; k++) {
+        const cand = best.slice(0,i).concat(best.slice(i,k+1).reverse(), best.slice(k+1));
+        if (routeLength(cand) < routeLength(best) - 1e-9) { best = cand; improved = true; }
+      }
+    }
+  }
+  return best;
+}
+function fillColor(f) { return f >= 70 ? "#d9534f" : f >= 40 ? "#f2a93b" : "#1f9d6b"; }
+ 
+function drawMap(smartOrder, fixedOrder) {
+  const svg = document.getElementById("map");
+  const thr = +document.getElementById("thr").value;
+  let s = "";
+  if (smartOrder && smartOrder.length) {
+    const pts = [DEPOT, ...smartOrder, DEPOT].map(p => p.x + "," + p.y).join(" ");
+    s += `<polyline points="${pts}" fill="none" stroke="#0b3d2e" stroke-width="3" stroke-linejoin="round"/>`;
+  }
+  bins.forEach(b => {
+    const on = b.fill >= thr;
+    s += `<circle cx="${b.x}" cy="${b.y}" r="${on ? 16 : 12}" fill="${fillColor(b.fill)}" stroke="${on ? '#0b3d2e' : '#fff'}" stroke-width="3"/>
+          <text x="${b.x}" y="${b.y+4}" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">${b.fill}</text>
+          <text x="${b.x}" y="${b.y+30}" text-anchor="middle" font-size="11" fill="#5c6f66">${b.id}</text>`;
+  });
+  s += `<rect x="${DEPOT.x-14}" y="${DEPOT.y-14}" width="28" height="28" fill="#2e6f95" rx="4"/>
+        <text x="${DEPOT.x}" y="${DEPOT.y+32}" text-anchor="middle" font-size="12" font-weight="700" fill="#2e6f95">Depot</text>`;
+  svg.innerHTML = s;
+}
+ 
+function planRoute(count) {
+  const thr = +document.getElementById("thr").value;
+  const fixed = nearestNeighbour(bins);                       // baseline: visit every bin
+  const due = bins.filter(b => b.fill >= thr);
+  const smart = due.length ? twoOpt(nearestNeighbour(due)) : [];
+  const fixedKm = routeLength(fixed) * SCALE_KM;
+  const smartKm = smart.length ? routeLength(smart) * SCALE_KM : 0;
+  const saved = fixedKm - smartKm;
+  document.getElementById("sFixed").textContent = fixedKm.toFixed(2);
+  document.getElementById("sSmart").textContent = smartKm.toFixed(2);
+  document.getElementById("sSave").textContent = fixedKm ? Math.round(100*saved/fixedKm) + "%" : "-";
+  document.getElementById("sStops").textContent = smart.length + " / " + bins.length;
+  drawMap(smart, fixed);
+  if (count) { stats.routes++; stats.kmSaved += saved; renderDash(); }
+}
+ 
+document.getElementById("thr").addEventListener("input", e => { document.getElementById("thrVal").textContent = e.target.value; planRoute(false); });
+document.getElementById("newDay").addEventListener("click", () => { bins = seededBins(); planRoute(false); });
+document.getElementById("plan").addEventListener("click", () => planRoute(true));
+bins = seededBins(); planRoute(false);
+</script>
+</body>
+</html>
